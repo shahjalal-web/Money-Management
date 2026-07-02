@@ -18,6 +18,8 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [recent, setRecent] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     async function fetchData() {
@@ -28,22 +30,43 @@ export default function DashboardPage() {
         ]);
         setSummary(summaryData);
         setRecent(recentData);
+        setError(false);
       } catch {
-        // handled
+        setError(true);
       } finally {
         setLoading(false);
       }
     }
     fetchData();
-  }, []);
+  }, [retryCount]);
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32" />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32" />)}
         </div>
         <Skeleton className="h-64" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
+          <RiExchangeDollarLine className="w-8 h-8 text-red-400" />
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-semibold text-foreground">Server connection failed</p>
+          <p className="text-sm text-muted mt-1">Could not reach the API. Please try again.</p>
+        </div>
+        <button
+          onClick={() => { setError(false); setLoading(true); setRetryCount(c => c + 1); }}
+          className="px-4 py-2 rounded-xl bg-indigo-500/10 text-indigo-400 text-sm font-medium hover:bg-indigo-500/20 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
