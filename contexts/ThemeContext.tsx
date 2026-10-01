@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useSyncExternalStore, ReactNode } from 'react';
+import { MotionConfig } from 'framer-motion';
 import { THEME_STORAGE_KEY as STORAGE_KEY, DARK_QUERY } from '@/lib/theme';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -58,7 +59,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
-      {children}
+      {/* Honour the OS "reduce motion" setting for every framer-motion animation */}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
     </ThemeContext.Provider>
   );
 }

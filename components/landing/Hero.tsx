@@ -13,17 +13,17 @@ export default function Hero() {
         <motion.div
           animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-20 left-[10%] w-[500px] h-[500px] bg-indigo-500/15 rounded-full blur-[100px]"
+          className="hidden md:block absolute top-20 left-[10%] w-[500px] h-[500px] bg-indigo-500/15 rounded-full blur-[100px]"
         />
         <motion.div
           animate={{ x: [0, -30, 0], y: [0, 20, 0] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute bottom-20 right-[10%] w-[400px] h-[400px] bg-violet-500/15 rounded-full blur-[100px]"
+          className="hidden md:block absolute bottom-20 right-[10%] w-[400px] h-[400px] bg-violet-500/15 rounded-full blur-[100px]"
         />
         <motion.div
           animate={{ x: [0, 15, 0], y: [0, 15, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-[80px]"
+          className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-[80px]"
         />
       </div>
 
@@ -107,7 +107,7 @@ export default function Hero() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.6 + i * 0.1 }}
                 whileHover={{ y: -5, borderColor: 'rgba(99, 102, 241, 0.3)' }}
-                className="p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 transition-all"
+                className="p-6 rounded-2xl bg-white/5 md:backdrop-blur-xl border border-white/10 transition-all"
               >
                 <item.icon className="w-8 h-8 text-indigo-400 mb-3" />
                 <h3 className="text-white font-semibold text-lg">{item.label}</h3>

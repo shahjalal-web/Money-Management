@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState, FormEvent } from 'react';
+import { useMemo, useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { apiDelete, apiGet, apiPut, errorMessage } from '@/lib/api';
+import { apiDelete, apiPut, errorMessage } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import { formatCurrency, formatTxDate } from '@/lib/utils';
 import { currencyName } from '@/lib/constants';
 import Card from '@/components/ui/Card';
@@ -28,25 +29,12 @@ function toDateInput(date: string | null) {
 }
 
 export default function LoansPage() {
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
+  const { data, loading, error, reload } = useApi<Loan[]>('/loans');
+  const loans = useMemo(() => data ?? [], [data]);
   const [status, setStatus] = useState<StatusFilter>('open');
   const [direction, setDirection] = useState<DirectionFilter>('all');
   const [editing, setEditing] = useState<Loan | null>(null);
   const [historyFor, setHistoryFor] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    apiGet<Loan[]>('/loans')
-      .then((data) => { if (active) { setLoans(data); setError(null); } })
-      .catch((err: unknown) => { if (active) setError(errorMessage(err, 'Failed to load loans')); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [reloadKey]);
-
-  const reload = () => setReloadKey((k) => k + 1);
 
   const visible = loans.filter((l) =>
     (status === 'all' || l.status === status) && (direction === 'all' || l.direction === direction));
@@ -72,7 +60,7 @@ export default function LoansPage() {
     try {
       await apiDelete(`/loans/${loan._id}`);
       toast.success('Loan deleted');
-      reload();
+
     } catch (err: unknown) {
       toast.error(errorMessage(err, 'Failed to delete'));
     }
@@ -100,7 +88,7 @@ export default function LoansPage() {
           <div className="text-center py-10">
             <p className="text-foreground font-medium mb-1">Couldn&apos;t load loans</p>
             <p className="text-sm text-muted mb-4">{error}</p>
-            <Button size="sm" variant="outline" onClick={() => { setLoading(true); reload(); }}>Retry</Button>
+            <Button size="sm" variant="outline" onClick={reload}>Retry</Button>
           </div>
         </Card>
       ) : (
@@ -151,8 +139,8 @@ export default function LoansPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {visible.map((loan, i) => (
-                <motion.div key={loan._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+              {visible.map((loan) => (
+                <motion.div key={loan._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                   <LoanCard
                     loan={loan}
                     showHistory={historyFor === loan._id}
@@ -168,7 +156,7 @@ export default function LoansPage() {
       )}
 
       <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={`Edit loan · ${editing?.person || ''}`}>
-        {editing && <EditLoanForm key={editing._id} loan={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+        {editing && <EditLoanForm key={editing._id} loan={editing} onClose={() => setEditing(null)} onSaved={() => setEditing(null)} />}
       </Modal>
     </div>
   );
@@ -246,16 +234,7 @@ function LoanCard({ loan, showHistory, onToggleHistory, onEdit, onDelete }: {
 }
 
 function LoanHistory({ loanId }: { loanId: string }) {
-  const [detail, setDetail] = useState<LoanDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    apiGet<LoanDetail>(`/loans/${loanId}`)
-      .then((d) => { if (active) setDetail(d); })
-      .catch((err: unknown) => { if (active) setError(errorMessage(err, 'Failed to load history')); });
-    return () => { active = false; };
-  }, [loanId]);
+  const { data: detail, error } = useApi<LoanDetail>(`/loans/${loanId}`);
 
   if (error) return <p className="text-sm text-red-400 mt-3">{error}</p>;
   if (!detail) return <Skeleton className="h-16 mt-3" />;

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -19,6 +19,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "MoneyWise - Smart Money Management",
   description: "Track income, expenses, and transfers across multiple accounts and currencies",
+};
+
+// viewport-fit=cover lets the mobile bottom nav use env(safe-area-inset-*) on notched phones
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0a0a1a",
 };
 
 export default function RootLayout({

@@ -98,6 +98,27 @@ export interface DashboardSummary {
   loans: LoanSummary;
 }
 
+export interface MonthTrend {
+  year: number;
+  month: number;
+  byCurrency: Record<string, { income: number; expense: number }>;
+}
+
+export interface CategorySpend {
+  categoryId: string;
+  name: string;
+  currency: string;
+  total: number;
+  count: number;
+}
+
+/** GET /summary/dashboard — everything the home screen shows */
+export interface DashboardData extends DashboardSummary {
+  recent: Transaction[];
+  trend: MonthTrend[];
+  expenseByCategory: CategorySpend[];
+}
+
 export type LoanDirection = 'given' | 'taken';
 export type ReturnDateType = 'expected' | 'final';
 

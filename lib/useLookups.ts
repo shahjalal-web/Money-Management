@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiGet } from './api';
+import { useMemo } from 'react';
+import { useApi } from './useApi';
 import type { Account, ExpenseCategory, IncomeSource, Transaction } from '@/types';
 
 export interface Lookups {
@@ -15,39 +15,21 @@ export interface Lookups {
   describe: (tx: Transaction) => string;
 }
 
-// Accounts, income sources and expense categories — the reference data most pages need
+interface LookupsResponse {
+  accounts: Account[];
+  incomeSources: IncomeSource[];
+  expenseCategories: ExpenseCategory[];
+}
+
+const NONE: never[] = [];
+
+// Accounts, income sources and expense categories — the reference data most pages need.
+// One cached request shared by every page.
 export function useLookups(): Lookups {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
-  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [version, setVersion] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([
-      apiGet<Account[]>('/accounts'),
-      apiGet<IncomeSource[]>('/income-sources'),
-      apiGet<ExpenseCategory[]>('/expense-categories'),
-    ])
-      .then(([acc, src, cat]) => {
-        if (!active) return;
-        setAccounts(acc);
-        setIncomeSources(src);
-        setExpenseCategories(cat);
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : 'Failed to load data');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => { active = false; };
-  }, [version]);
-
-  const reload = useCallback(() => setVersion((v) => v + 1), []);
+  const { data, loading, error, reload } = useApi<LookupsResponse>('/lookups');
+  const accounts = data?.accounts ?? NONE;
+  const incomeSources = data?.incomeSources ?? NONE;
+  const expenseCategories = data?.expenseCategories ?? NONE;
 
   const describe = useMemo(() => {
     const names = new Map<string, string>();

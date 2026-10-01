@@ -21,7 +21,7 @@ export default function Navbar() {
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-[#0a0a1a]/80 backdrop-blur-xl border-b border-white/5' : ''
+        scrolled ? 'bg-[#0a0a1a]/80 md:backdrop-blur-xl border-b border-white/5' : ''
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -67,7 +67,7 @@ export default function Navbar() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="md:hidden bg-[#0a0a1a]/95 backdrop-blur-xl border-b border-white/5 px-4 py-4 space-y-2"
+          className="md:hidden bg-[#0a0a1a]/95 md:backdrop-blur-xl border-b border-white/5 px-4 py-4 space-y-2"
         >
           <Link href="/login" onClick={() => setMobileOpen(false)} className="block w-full text-center py-2.5 rounded-xl text-white/80 hover:bg-white/5 font-medium">
             Sign In

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { motion } from 'framer-motion';
-import { apiGet, apiPost, apiPut, apiDelete, errorMessage } from '@/lib/api';
+import { apiPost, apiPut, apiDelete, errorMessage } from '@/lib/api';
+import { useLookups } from '@/lib/useLookups';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -16,27 +17,11 @@ type Tab = 'income' | 'expense';
 
 export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState<Tab>('income');
-  const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
-  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { incomeSources, expenseCategories, loading } = useLookups();
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<IncomeSource | ExpenseCategory | null>(null);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([apiGet<IncomeSource[]>('/income-sources'), apiGet<ExpenseCategory[]>('/expense-categories')])
-      .then(([sources, categories]) => {
-        if (!active) return;
-        setIncomeSources(sources); setExpenseCategories(categories);
-      })
-      .catch((err: unknown) => { if (active) toast.error(errorMessage(err, 'Failed to load categories')); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [reloadKey]);
-  const fetchData = () => setReloadKey((k) => k + 1);
 
   function openCreate() { setEditItem(null); setName(''); setModalOpen(true); }
   function openEdit(item: IncomeSource | ExpenseCategory) { setEditItem(item); setName(item.name); setModalOpen(true); }
@@ -50,13 +35,13 @@ export default function CategoriesPage() {
     try {
       if (editItem) { await apiPut(`${apiPath}/${editItem._id}`, { name }); toast.success('Updated'); }
       else { await apiPost(apiPath, { name }); toast.success('Created'); }
-      setModalOpen(false); fetchData();
+      setModalOpen(false);
     } catch (err: unknown) { toast.error(errorMessage(err, 'Failed')); } finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this item?')) return;
-    try { await apiDelete(`${apiPath}/${id}`); toast.success('Deleted'); fetchData(); }
+    try { await apiDelete(`${apiPath}/${id}`); toast.success('Deleted'); }
     catch (err: unknown) { toast.error(errorMessage(err, 'Failed')); }
   }
 
@@ -84,8 +69,8 @@ export default function CategoriesPage() {
         <Card><div className="text-center py-12"><p className="text-muted mb-4">No {activeTab === 'income' ? 'income sources' : 'expense categories'} yet</p><Button onClick={openCreate} size="sm">Create First {activeTab === 'income' ? 'Source' : 'Category'}</Button></div></Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((item, i) => (
-            <motion.div key={item._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+          {items.map((item) => (
+            <motion.div key={item._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
               <Card hover>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

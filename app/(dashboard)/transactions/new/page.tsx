@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { apiPost, errorMessage } from '@/lib/api';
 import { useLookups } from '@/lib/useLookups';
+import { useApi } from '@/lib/useApi';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -14,7 +15,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import LoanForm, { type LoanAction } from '@/components/loans/LoanForm';
 import { LOAN_ACTIONS } from '@/lib/constants';
 import { formatCurrency, todayLocal } from '@/lib/utils';
-import type { Account } from '@/types';
+import type { Account, Loan } from '@/types';
 import toast from 'react-hot-toast';
 import { RiArrowUpLine, RiArrowDownLine, RiArrowLeftRightLine, RiHandCoinLine } from 'react-icons/ri';
 
@@ -47,6 +48,8 @@ function NewTransactionForm() {
   const actionParam = searchParams.get('action') as LoanAction | null;
   const [tab, setTab] = useState<Tab>(tabParam && TABS.includes(tabParam) ? tabParam : 'income');
   const { accounts, incomeSources, expenseCategories, loading, error, reload } = useLookups();
+  // Loans are only needed for the Loan tab
+  const loansApi = useApi<Loan[]>(tab === 'loan' ? '/loans' : null);
   const [saving, setSaving] = useState(false);
 
   const [incomeForm, setIncomeForm] = useState({ accountId: '', incomeSourceId: '', amount: '', date: todayLocal(), notes: '' });
@@ -235,11 +238,13 @@ function NewTransactionForm() {
         </motion.div>
       )}
 
-      {tab === 'loan' && (
+      {tab === 'loan' && !loansApi.data && <Skeleton className="h-[420px]" />}
+      {tab === 'loan' && loansApi.data && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <Card>
             <LoanForm
               accounts={accounts}
+              loans={loansApi.data}
               initialAction={actionParam && actionParam in LOAN_ACTIONS ? actionParam : 'lend'}
               initialLoanId={searchParams.get('loanId') || ''}
               initialPrevious={searchParams.get('previous') === '1'}

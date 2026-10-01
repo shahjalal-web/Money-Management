@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import Link from 'next/link';
-import { apiGet, apiPost, errorMessage } from '@/lib/api';
+import { apiPost, errorMessage } from '@/lib/api';
 import { CURRENCIES, LOAN_ACTIONS } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, formatTxDate, todayLocal } from '@/lib/utils';
@@ -18,6 +18,8 @@ export type LoanAction = LoanTransactionType;
 
 interface Props {
   accounts: Account[];
+  /** All of the user's loans (open ones are offered for repay/collect) */
+  loans: Loan[];
   initialAction?: LoanAction;
   initialLoanId?: string;
   /** Start in "previous loan" mode (old pawna/dena entered for record only) */
@@ -37,13 +39,13 @@ function positive(value: string) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-export default function LoanForm({ accounts, initialAction = 'lend', initialLoanId = '', initialPrevious = false, onDone }: Props) {
+export default function LoanForm({ accounts, loans, initialAction = 'lend', initialLoanId = '', initialPrevious = false, onDone }: Props) {
   const { profile } = useAuth();
   const [action, setAction] = useState<LoanAction>(initialAction);
   // Previous loans move no money now: no account, just a currency and what's already been returned
   const [previous, setPrevious] = useState(initialPrevious);
-  const [openLoans, setOpenLoans] = useState<Loan[]>([]);
-  const [people, setPeople] = useState<string[]>([]);
+  const openLoans = loans.filter((l) => l.status === 'open');
+  const people = [...new Set(loans.map((l) => l.person))].sort((a, b) => a.localeCompare(b));
   const [saving, setSaving] = useState(false);
 
   // lend / borrow
@@ -53,28 +55,17 @@ export default function LoanForm({ accounts, initialAction = 'lend', initialLoan
     currency: profile?.defaultCurrency || 'BDT', alreadyRepaid: '',
   });
   // repay / collect
-  const [payment, setPayment] = useState({ loanId: initialLoanId, accountId: '', amount: '', date: todayLocal(), notes: '' });
-
-  useEffect(() => {
-    let active = true;
-    apiGet<Loan[]>('/loans')
-      .then((loans) => {
-        if (!active) return;
-        setOpenLoans(loans.filter((l) => l.status === 'open'));
-        setPeople([...new Set(loans.map((l) => l.person))].sort((a, b) => a.localeCompare(b)));
-        // Prefill amount/account when arriving with a specific loan (from the Loans page)
-        const pre = loans.find((l) => l._id === initialLoanId && l.status === 'open');
-        if (pre) {
-          setPayment((p) => ({
-            ...p,
-            amount: String(pre.outstanding),
-            accountId: pre.accountId && accounts.some((a) => a._id === pre.accountId) ? pre.accountId : '',
-          }));
-        }
-      })
-      .catch((err: unknown) => { if (active) toast.error(errorMessage(err, 'Failed to load loans')); });
-    return () => { active = false; };
-  }, [initialLoanId, accounts]);
+  // Arriving from the Loans page with a specific loan: prefill its outstanding amount and account
+  const [payment, setPayment] = useState(() => {
+    const pre = loans.find((l) => l._id === initialLoanId && l.status === 'open');
+    return {
+      loanId: pre ? initialLoanId : '',
+      accountId: pre?.accountId && accounts.some((a) => a._id === pre.accountId) ? pre.accountId : '',
+      amount: pre ? String(pre.outstanding) : '',
+      date: todayLocal(),
+      notes: '',
+    };
+  });
 
   const isNew = action === 'lend' || action === 'borrow';
   // repay settles money I borrowed (taken); collect settles money I lent (given)

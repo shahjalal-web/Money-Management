@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { motion } from 'framer-motion';
-import { apiGet, apiPost, apiPut, apiDelete, errorMessage } from '@/lib/api';
+import { apiPost, apiPut, apiDelete, errorMessage } from '@/lib/api';
+import { useLookups } from '@/lib/useLookups';
 import { useAuth } from '@/contexts/AuthContext';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -17,24 +18,12 @@ import toast from 'react-hot-toast';
 import { RiWalletLine, RiAddLine, RiEditLine, RiDeleteBinLine } from 'react-icons/ri';
 
 export default function AccountsPage() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { accounts, loading } = useLookups();
   const [modalOpen, setModalOpen] = useState(false);
   const [editAccount, setEditAccount] = useState<Account | null>(null);
   const [form, setForm] = useState({ name: '', currency: 'BDT', color: '#6366f1', openingBalance: '' });
   const [saving, setSaving] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
   const { profile } = useAuth();
-
-  useEffect(() => {
-    let active = true;
-    apiGet<Account[]>('/accounts')
-      .then((data) => { if (active) setAccounts(data); })
-      .catch((err: unknown) => { if (active) toast.error(errorMessage(err, 'Failed to load accounts')); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [reloadKey]);
-  const fetchAccounts = () => setReloadKey((k) => k + 1);
 
   function openCreate() { setEditAccount(null); setForm({ name: '', currency: profile?.defaultCurrency || 'BDT', color: ACCOUNT_COLORS[accounts.length % ACCOUNT_COLORS.length], openingBalance: '' }); setModalOpen(true); }
   function openEdit(account: Account) { setEditAccount(account); setForm({ name: account.name, currency: account.currency, color: account.color || '#6366f1', openingBalance: account.openingBalance ? String(account.openingBalance) : '' }); setModalOpen(true); }
@@ -49,13 +38,13 @@ export default function AccountsPage() {
     try {
       if (editAccount) { await apiPut(`/accounts/${editAccount._id}`, body); toast.success('Account updated'); }
       else { await apiPost('/accounts', body); toast.success('Account created'); }
-      setModalOpen(false); fetchAccounts();
+      setModalOpen(false);
     } catch (err: unknown) { toast.error(errorMessage(err, 'Failed to save')); } finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this account? Its transactions stay in your history, but the account will no longer appear in lists.')) return;
-    try { await apiDelete(`/accounts/${id}`); toast.success('Account deleted'); fetchAccounts(); }
+    try { await apiDelete(`/accounts/${id}`); toast.success('Account deleted'); }
     catch (err: unknown) { toast.error(errorMessage(err, 'Failed to delete')); }
   }
 
@@ -79,8 +68,8 @@ export default function AccountsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {accounts.map((account, i) => (
-            <motion.div key={account._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+          {accounts.map((account) => (
+            <motion.div key={account._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
               <Card hover>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">

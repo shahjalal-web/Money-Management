@@ -3,6 +3,12 @@ import { auth } from './firebase';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const TIMEOUT_MS = 30000;
 
+// Notified after every successful write, so cached reads can refresh (see useApi.ts)
+const writeListeners = new Set<(path: string) => void>();
+export function onApiWrite(fn: (path: string) => void) {
+  writeListeners.add(fn);
+}
+
 async function getAuthHeaders(): Promise<HeadersInit> {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
@@ -38,6 +44,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     // non-JSON body
   }
   if (!res.ok) throw new Error(data?.message || `Request failed (${res.status})`);
+  if (method !== 'GET') writeListeners.forEach((fn) => fn(path));
   return data?.data as T;
 }
 

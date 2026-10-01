@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { RiLogoutBoxLine, RiUser3Line, RiArrowDownSLine } from 'react-icons/ri';
+import { RiLogoutBoxLine, RiUser3Line, RiArrowDownSLine, RiMoneyDollarCircleLine } from 'react-icons/ri';
 import toast from 'react-hot-toast';
 
 export default function Topbar() {
@@ -33,10 +33,14 @@ export default function Topbar() {
   }
 
   return (
-    <header className="h-16 border-b border-border bg-surface/80 backdrop-blur-xl flex items-center justify-between px-6">
-      <div className="md:ml-0 ml-12">
-        <h2 className="text-lg font-semibold text-foreground">
-          Welcome{user?.displayName ? `, ${user.displayName}` : ''}
+    <header className="h-14 md:h-16 border-b border-border bg-surface flex items-center justify-between px-4 md:px-6 flex-shrink-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+          <RiMoneyDollarCircleLine className="w-4 h-4 text-white" />
+        </div>
+        <h2 className="text-base md:text-lg font-semibold text-foreground truncate">
+          <span className="hidden sm:inline">Welcome{user?.displayName ? `, ${user.displayName}` : ''}</span>
+          <span className="sm:hidden">MoneyWise</span>
         </h2>
       </div>
 

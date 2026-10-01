@@ -13,6 +13,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { apiPost, apiPut } from '@/lib/api';
+import { setApiCacheUser } from '@/lib/useApi';
 import type { User as UserProfile } from '@/types';
 
 interface ProfileUpdate {
@@ -70,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // Scope cached API data to this user before any page renders with it
+      setApiCacheUser(firebaseUser?.uid ?? null);
       setUser(firebaseUser);
       if (firebaseUser) {
         setAuthCookie();
@@ -107,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await firebaseSignOut(auth);
+    setApiCacheUser(null);
     clearAuthCookie();
     setUser(null);
     setProfile(null);

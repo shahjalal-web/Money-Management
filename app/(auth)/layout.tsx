@@ -28,22 +28,22 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   if (user) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a1a] p-4 relative overflow-hidden">
+    <div className="min-h-dvh flex items-center justify-center bg-[#0a0a1a] bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.18),transparent_60%)] md:bg-none p-4 relative overflow-hidden">
       {/* Animated background orbs */}
       <motion.div
         animate={{ x: [0, 40, 0], y: [0, -30, 0] }}
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-1/4 left-[15%] w-[400px] h-[400px] bg-indigo-500/15 rounded-full blur-[120px]"
+        className="hidden md:block absolute top-1/4 left-[15%] w-[400px] h-[400px] bg-indigo-500/15 rounded-full blur-[120px]"
       />
       <motion.div
         animate={{ x: [0, -40, 0], y: [0, 30, 0] }}
         transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute bottom-1/4 right-[15%] w-[350px] h-[350px] bg-violet-500/15 rounded-full blur-[120px]"
+        className="hidden md:block absolute bottom-1/4 right-[15%] w-[350px] h-[350px] bg-violet-500/15 rounded-full blur-[120px]"
       />
       <motion.div
         animate={{ scale: [1, 1.2, 1] }}
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] bg-cyan-500/10 rounded-full blur-[100px]"
+        className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] bg-cyan-500/10 rounded-full blur-[100px]"
       />
 
       <div className="relative z-10 w-full max-w-md">
@@ -67,7 +67,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           initial={{ opacity: 0, y: 30, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl shadow-black/20"
+          className="bg-white/[0.03] md:backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl shadow-black/20"
         >
           {children}
         </motion.div>

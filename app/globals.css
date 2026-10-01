@@ -14,6 +14,11 @@
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
+  /* charts (validated: dataviz palette, light surface #ffffff) */
+  --viz-income: #2a78d6;
+  --viz-expense: #eb6834;
+  --viz-grid: #e2e8f0;
+  --viz-axis: #cbd5e1;
 }
 
 .dark {
@@ -23,6 +28,11 @@
   --surface-hover: #1a1a3e;
   --border: rgba(255, 255, 255, 0.08);
   --muted: #94a3b8;
+  /* chart steps for the dark surface #111127 (validated) */
+  --viz-income: #3987e5;
+  --viz-expense: #d95926;
+  --viz-grid: rgba(255, 255, 255, 0.07);
+  --viz-axis: rgba(255, 255, 255, 0.16);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,6 +43,10 @@
     --surface-hover: #1a1a3e;
     --border: rgba(255, 255, 255, 0.08);
     --muted: #94a3b8;
+    --viz-income: #3987e5;
+    --viz-expense: #d95926;
+    --viz-grid: rgba(255, 255, 255, 0.07);
+    --viz-axis: rgba(255, 255, 255, 0.16);
   }
 }
 
@@ -50,6 +64,8 @@
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
+  --color-viz-income: var(--viz-income);
+  --color-viz-expense: var(--viz-expense);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -76,3 +92,7 @@ select option {
   background: var(--border);
   border-radius: 3px;
 }
+
+/* Hide scrollbars on horizontal swipe rows (accounts strip) */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
