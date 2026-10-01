@@ -1,6 +1,7 @@
 import { auth } from './firebase';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const TIMEOUT_MS = 30000;
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const user = auth.currentUser;
@@ -12,56 +13,50 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   };
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE}${path}`, { headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Request failed');
-  return data.data;
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      throw new Error('Server took too long to respond. Please try again.');
+    }
+    throw new Error('Cannot reach the server. Check your connection and try again.');
+  }
+
+  // Proxies/gateways can answer with HTML (e.g. a 504 page), so don't assume JSON
+  let data: { data?: T; message?: string } | null = null;
+  try {
+    data = await res.json();
+  } catch {
+    // non-JSON body
+  }
+  if (!res.ok) throw new Error(data?.message || `Request failed (${res.status})`);
+  return data?.data as T;
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Request failed');
-  return data.data;
+export function apiGet<T>(path: string): Promise<T> {
+  return request<T>('GET', path);
 }
 
-export async function apiPut<T>(path: string, body: unknown): Promise<T> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Request failed');
-  return data.data;
+export function apiPost<T>(path: string, body: unknown): Promise<T> {
+  return request<T>('POST', path, body);
 }
 
-export async function apiDelete<T>(path: string): Promise<T> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'DELETE',
-    headers,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Request failed');
-  return data.data;
+export function apiPut<T>(path: string, body: unknown): Promise<T> {
+  return request<T>('PUT', path, body);
 }
 
-export async function apiPostPublic<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Request failed');
-  return data.data;
+export function apiDelete<T>(path: string): Promise<T> {
+  return request<T>('DELETE', path);
+}
+
+export function errorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  return err instanceof Error ? err.message : fallback;
 }

@@ -9,6 +9,7 @@ export function proxy(request: NextRequest) {
     pathname.startsWith('/transactions') ||
     pathname.startsWith('/accounts') ||
     pathname.startsWith('/categories') ||
+    pathname.startsWith('/loans') ||
     pathname.startsWith('/settings');
 
   const isAuthRoute =
@@ -35,6 +36,7 @@ export const config = {
     '/transactions/:path*',
     '/accounts/:path*',
     '/categories/:path*',
+    '/loans/:path*',
     '/settings/:path*',
     '/login',
     '/register',

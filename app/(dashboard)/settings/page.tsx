@@ -3,34 +3,19 @@
 import { useState, FormEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { apiPut } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Skeleton from '@/components/ui/Skeleton';
 import { CURRENCIES } from '@/lib/constants';
 import toast from 'react-hot-toast';
-import { RiUser3Line, RiPaletteLine, RiMoneyDollarCircleLine } from 'react-icons/ri';
+import { RiUser3Line, RiPaletteLine } from 'react-icons/ri';
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [displayName, setDisplayName] = useState(user?.displayName || '');
-  const [defaultCurrency, setDefaultCurrency] = useState('BDT');
-  const [saving, setSaving] = useState(false);
-
-  async function handleSave(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await apiPut('/auth/profile', { displayName, defaultCurrency });
-      toast.success('Settings saved');
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -46,14 +31,16 @@ export default function SettingsPage() {
             <p className="text-sm text-muted">{user?.email}</p>
           </div>
         </div>
-        <form onSubmit={handleSave} className="space-y-4">
-          <Input label="Display Name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          <div className="flex items-center gap-3">
-            <RiMoneyDollarCircleLine className="w-5 h-5 text-muted flex-shrink-0" />
-            <Select label="Default Currency" value={defaultCurrency} onChange={(e) => setDefaultCurrency(e.target.value)} options={CURRENCIES.map(c => ({ value: c.code, label: `${c.code} - ${c.name}` }))} />
-          </div>
-          <Button type="submit" loading={saving}>Save Changes</Button>
-        </form>
+        {profile ? (
+          // Remount when the profile arrives so the form starts from saved values
+          <ProfileForm
+            key={profile._id}
+            initialName={profile.displayName || user?.displayName || ''}
+            initialCurrency={profile.defaultCurrency || 'BDT'}
+          />
+        ) : (
+          <div className="space-y-4"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
+        )}
       </Card>
 
       <Card>
@@ -77,5 +64,37 @@ export default function SettingsPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function ProfileForm({ initialName, initialCurrency }: { initialName: string; initialCurrency: string }) {
+  const { updateProfile } = useAuth();
+  const [displayName, setDisplayName] = useState(initialName);
+  const [defaultCurrency, setDefaultCurrency] = useState(initialCurrency);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave(e: FormEvent) {
+    e.preventDefault();
+    if (!displayName.trim()) { toast.error('Display name cannot be empty'); return; }
+    setSaving(true);
+    try {
+      await updateProfile({ displayName: displayName.trim(), defaultCurrency });
+      toast.success('Settings saved');
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, 'Failed to save'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-4">
+      <Input label="Display Name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+      <div>
+        <Select label="Default Currency" value={defaultCurrency} onChange={(e) => setDefaultCurrency(e.target.value)} options={CURRENCIES.map(c => ({ value: c.code, label: `${c.code} - ${c.name}` }))} />
+        <p className="mt-1 text-xs text-muted">Used as the starting currency when you create a new account.</p>
+      </div>
+      <Button type="submit" loading={saving}>Save Changes</Button>
+    </form>
   );
 }

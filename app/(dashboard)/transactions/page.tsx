@@ -1,46 +1,105 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { apiGet, apiDelete } from '@/lib/api';
+import { apiGet, apiDelete, errorMessage } from '@/lib/api';
+import { useLookups } from '@/lib/useLookups';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 import Skeleton from '@/components/ui/Skeleton';
-import { formatCurrency, formatDate, getTransactionColor, getTransactionBgColor } from '@/lib/utils';
+import { formatTxDate } from '@/lib/utils';
+import { TransactionAmount, TransactionIcon } from '@/components/transactions/TransactionVisuals';
 import type { Transaction, PaginatedResponse } from '@/types';
 import toast from 'react-hot-toast';
-import { RiArrowUpLine, RiArrowDownLine, RiExchangeDollarLine, RiDeleteBinLine, RiAddLine, RiFilterLine } from 'react-icons/ri';
+import { RiExchangeDollarLine, RiDeleteBinLine, RiAddLine, RiFilterLine, RiCloseLine } from 'react-icons/ri';
+
+const PAGE_SIZE = 15;
+const TYPE_OPTIONS = [
+  { value: 'income', label: 'Income' },
+  { value: 'expense', label: 'Expense' },
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'lend', label: 'Lent (ধার দেয়া)' },
+  { value: 'borrow', label: 'Borrowed (ধার নেয়া)' },
+  { value: 'repay', label: 'Repaid (পরিশোধ করা)' },
+  { value: 'collect', label: 'Collected (পরিশোধ পাওয়া)' },
+];
+const EMPTY_FILTERS = { type: '', accountId: '', startDate: '', endDate: '', page: 1 };
 
 export default function TransactionsPage() {
+  return (
+    <Suspense fallback={<div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>}>
+      <TransactionsList />
+    </Suspense>
+  );
+}
+
+function TransactionsList() {
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState(() => ({ ...EMPTY_FILTERS, accountId: searchParams.get('accountId') || '' }));
   const [data, setData] = useState<PaginatedResponse<Transaction> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ type: '', startDate: '', endDate: '', page: '1' });
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { accounts, describe, reload: reloadLookups } = useLookups();
 
-  async function fetchTransactions() {
-    try {
-      const params = new URLSearchParams();
-      if (filters.type) params.set('type', filters.type);
-      if (filters.startDate) params.set('startDate', filters.startDate);
-      if (filters.endDate) params.set('endDate', filters.endDate);
-      params.set('page', filters.page);
-      params.set('limit', '15');
-      setData(await apiGet<PaginatedResponse<Transaction>>(`/transactions?${params.toString()}`));
-    } catch { /* handled */ } finally { setLoading(false); }
+  useEffect(() => {
+    let active = true;
+    const params = new URLSearchParams();
+    if (filters.type) params.set('type', filters.type);
+    if (filters.accountId) params.set('accountId', filters.accountId);
+    if (filters.startDate) params.set('startDate', filters.startDate);
+    if (filters.endDate) params.set('endDate', filters.endDate);
+    params.set('page', String(filters.page));
+    params.set('limit', String(PAGE_SIZE));
+
+    apiGet<PaginatedResponse<Transaction>>(`/transactions?${params.toString()}`)
+      .then((result) => {
+        if (!active) return;
+        setData(result);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (active) setError(errorMessage(err, 'Failed to load transactions'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [filters, reloadKey]);
+
+  function updateFilters(patch: Partial<typeof EMPTY_FILTERS>) {
+    setLoading(true);
+    setFilters((f) => ({ ...f, page: 1, ...patch }));
   }
-
-  useEffect(() => { fetchTransactions(); }, [filters]);
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this transaction? This will reverse the balance change.')) return;
-    try { await apiDelete(`/transactions/${id}`); toast.success('Transaction deleted'); fetchTransactions(); }
-    catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed'); }
+    setDeletingId(id);
+    try {
+      await apiDelete(`/transactions/${id}`);
+      toast.success('Transaction deleted');
+      // Step back a page if we just removed the last row on this one
+      if (data && data.transactions.length === 1 && filters.page > 1) {
+        setFilters((f) => ({ ...f, page: f.page - 1 }));
+      } else {
+        setReloadKey((k) => k + 1);
+      }
+      reloadLookups();
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, 'Failed to delete'));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const transactions = data?.transactions || [];
+  const hasFilters = !!(filters.type || filters.accountId || filters.startDate || filters.endDate);
 
   return (
     <div className="space-y-6">
@@ -50,55 +109,69 @@ export default function TransactionsPage() {
       </div>
 
       <Card className="p-4!">
-        <div className="flex items-center gap-2 mb-3">
-          <RiFilterLine className="w-4 h-4 text-muted" />
-          <span className="text-sm text-muted">Filters</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <RiFilterLine className="w-4 h-4 text-muted" />
+            <span className="text-sm text-muted">Filters</span>
+          </div>
+          {hasFilters && (
+            <button onClick={() => updateFilters(EMPTY_FILTERS)} className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors">
+              <RiCloseLine className="w-3.5 h-3.5" /> Clear
+            </button>
+          )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Select placeholder="All types" options={[{ value: 'income', label: 'Income' }, { value: 'expense', label: 'Expense' }, { value: 'transfer', label: 'Transfer' }]} value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value, page: '1' })} />
-          <Input type="date" placeholder="Start date" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: e.target.value, page: '1' })} />
-          <Input type="date" placeholder="End date" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: e.target.value, page: '1' })} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Select aria-label="Type" placeholder="All types" options={TYPE_OPTIONS} value={filters.type} onChange={(e) => updateFilters({ type: e.target.value })} />
+          <Select aria-label="Account" placeholder="All accounts" options={accounts.map((a) => ({ value: a._id, label: `${a.name} (${a.currency})` }))} value={filters.accountId} onChange={(e) => updateFilters({ accountId: e.target.value })} />
+          <Input aria-label="Start date" type="date" value={filters.startDate} max={filters.endDate || undefined} onChange={(e) => updateFilters({ startDate: e.target.value })} />
+          <Input aria-label="End date" type="date" value={filters.endDate} min={filters.startDate || undefined} onChange={(e) => updateFilters({ endDate: e.target.value })} />
         </div>
       </Card>
 
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+      ) : error ? (
+        <Card>
+          <div className="text-center py-12">
+            <p className="text-foreground font-medium mb-1">Couldn&apos;t load transactions</p>
+            <p className="text-sm text-muted mb-4">{error}</p>
+            <Button size="sm" variant="outline" onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}>Retry</Button>
+          </div>
+        </Card>
       ) : transactions.length === 0 ? (
         <Card>
           <div className="text-center py-12">
             <RiExchangeDollarLine className="w-16 h-16 text-muted/20 mx-auto mb-4" />
-            <p className="text-muted mb-2">No transactions found</p>
-            <Link href="/transactions/new" className="text-indigo-400 text-sm hover:text-indigo-300">Add your first transaction</Link>
+            <p className="text-muted mb-2">{hasFilters ? 'No transactions match these filters' : 'No transactions yet'}</p>
+            {!hasFilters && <Link href="/transactions/new" className="text-indigo-400 text-sm hover:text-indigo-300">Add your first transaction</Link>}
           </div>
         </Card>
       ) : (
         <>
+          <p className="text-xs text-muted -mb-3">{data?.total} transaction{data?.total === 1 ? '' : 's'}</p>
           <Card className="divide-y divide-border p-0!">
             {transactions.map((tx, i) => (
-              <motion.div key={tx._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} className="flex items-center justify-between p-4 hover:bg-surface-hover transition-colors group">
+              <motion.div key={tx._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} className="flex items-center justify-between gap-3 p-4 hover:bg-surface-hover transition-colors group">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${getTransactionBgColor(tx.type)}`}>
-                    {tx.type === 'income' ? <RiArrowUpLine className={`w-5 h-5 ${getTransactionColor(tx.type)}`} /> :
-                     tx.type === 'expense' ? <RiArrowDownLine className={`w-5 h-5 ${getTransactionColor(tx.type)}`} /> :
-                     <RiExchangeDollarLine className={`w-5 h-5 ${getTransactionColor(tx.type)}`} />}
-                  </div>
+                  <TransactionIcon type={tx.type} />
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <Badge type={tx.type} />
-                      {tx.notes && <span className="text-sm text-muted truncate">{tx.notes}</span>}
+                      <span className="text-sm text-foreground truncate">{describe(tx)}</span>
                     </div>
-                    <p className="text-xs text-muted mt-0.5">{formatDate(tx.date)}</p>
+                    <p className="text-xs text-muted mt-0.5 truncate">
+                      {formatTxDate(tx.date)}{tx.notes ? ` · ${tx.notes}` : ''}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className={`font-semibold ${getTransactionColor(tx.type)}`}>
-                      {tx.type === 'income' && '+'}{tx.type === 'expense' && '-'}
-                      {tx.type === 'transfer' ? formatCurrency(tx.fromAmount || 0, tx.fromCurrency) : formatCurrency(tx.amount || 0, tx.currency)}
-                    </p>
-                    {tx.type === 'transfer' && <p className="text-xs text-amber-500/60">→ {formatCurrency(tx.toAmount || 0, tx.toCurrency)}</p>}
-                  </div>
-                  <button onClick={() => handleDelete(tx._id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                  <TransactionAmount tx={tx} showTransferDetail />
+                  <button
+                    onClick={() => handleDelete(tx._id)}
+                    disabled={deletingId === tx._id}
+                    aria-label="Delete transaction"
+                    className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-400 transition-colors md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
+                  >
                     <RiDeleteBinLine className="w-4 h-4" />
                   </button>
                 </div>
@@ -108,9 +181,9 @@ export default function TransactionsPage() {
 
           {data && data.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
-              <Button variant="ghost" size="sm" disabled={data.page <= 1} onClick={() => setFilters({ ...filters, page: String(data.page - 1) })}>Previous</Button>
+              <Button variant="ghost" size="sm" disabled={data.page <= 1} onClick={() => { setLoading(true); setFilters({ ...filters, page: data.page - 1 }); }}>Previous</Button>
               <span className="text-sm text-muted">Page {data.page} of {data.totalPages}</span>
-              <Button variant="ghost" size="sm" disabled={data.page >= data.totalPages} onClick={() => setFilters({ ...filters, page: String(data.page + 1) })}>Next</Button>
+              <Button variant="ghost" size="sm" disabled={data.page >= data.totalPages} onClick={() => { setLoading(true); setFilters({ ...filters, page: data.page + 1 }); }}>Next</Button>
             </div>
           )}
         </>

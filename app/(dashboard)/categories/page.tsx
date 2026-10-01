@@ -2,7 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import { motion } from 'framer-motion';
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete, errorMessage } from '@/lib/api';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -23,14 +23,20 @@ export default function CategoriesPage() {
   const [editItem, setEditItem] = useState<IncomeSource | ExpenseCategory | null>(null);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  async function fetchData() {
-    try {
-      const [sources, categories] = await Promise.all([apiGet<IncomeSource[]>('/income-sources'), apiGet<ExpenseCategory[]>('/expense-categories')]);
-      setIncomeSources(sources); setExpenseCategories(categories);
-    } catch { /* handled */ } finally { setLoading(false); }
-  }
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    let active = true;
+    Promise.all([apiGet<IncomeSource[]>('/income-sources'), apiGet<ExpenseCategory[]>('/expense-categories')])
+      .then(([sources, categories]) => {
+        if (!active) return;
+        setIncomeSources(sources); setExpenseCategories(categories);
+      })
+      .catch((err: unknown) => { if (active) toast.error(errorMessage(err, 'Failed to load categories')); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [reloadKey]);
+  const fetchData = () => setReloadKey((k) => k + 1);
 
   function openCreate() { setEditItem(null); setName(''); setModalOpen(true); }
   function openEdit(item: IncomeSource | ExpenseCategory) { setEditItem(item); setName(item.name); setModalOpen(true); }
@@ -45,13 +51,13 @@ export default function CategoriesPage() {
       if (editItem) { await apiPut(`${apiPath}/${editItem._id}`, { name }); toast.success('Updated'); }
       else { await apiPost(apiPath, { name }); toast.success('Created'); }
       setModalOpen(false); fetchData();
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed'); } finally { setSaving(false); }
+    } catch (err: unknown) { toast.error(errorMessage(err, 'Failed')); } finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this item?')) return;
     try { await apiDelete(`${apiPath}/${id}`); toast.success('Deleted'); fetchData(); }
-    catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Failed'); }
+    catch (err: unknown) { toast.error(errorMessage(err, 'Failed')); }
   }
 
   const items = activeTab === 'income' ? incomeSources : expenseCategories;
@@ -89,8 +95,8 @@ export default function CategoriesPage() {
                     <p className="font-medium text-foreground">{item.name}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-colors"><RiEditLine className="w-4 h-4" /></button>
-                    <button onClick={() => handleDelete(item._id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-400 transition-colors"><RiDeleteBinLine className="w-4 h-4" /></button>
+                    <button onClick={() => openEdit(item)} aria-label="Edit" className="p-1.5 rounded-lg hover:bg-surface-hover text-muted hover:text-foreground transition-colors"><RiEditLine className="w-4 h-4" /></button>
+                    <button onClick={() => handleDelete(item._id)} aria-label="Delete" className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted hover:text-red-400 transition-colors"><RiDeleteBinLine className="w-4 h-4" /></button>
                   </div>
                 </div>
               </Card>

@@ -8,13 +8,14 @@ import { cn } from '@/lib/utils';
 import {
   RiDashboardLine, RiExchangeDollarLine, RiWalletLine,
   RiPriceTag3Line, RiSettings4Line, RiMoneyDollarCircleLine,
-  RiMenuFoldLine, RiMenuUnfoldLine,
+  RiMenuFoldLine, RiMenuUnfoldLine, RiAddCircleLine, RiHandCoinLine,
 } from 'react-icons/ri';
 
 const navItems = [
   { href: '/dashboard', icon: RiDashboardLine, label: 'Dashboard' },
-  { href: '/transactions/new', icon: RiExchangeDollarLine, label: 'New Transaction' },
+  { href: '/transactions/new', icon: RiAddCircleLine, label: 'New Transaction' },
   { href: '/transactions', icon: RiExchangeDollarLine, label: 'Transactions' },
+  { href: '/loans', icon: RiHandCoinLine, label: 'Loans' },
   { href: '/accounts', icon: RiWalletLine, label: 'Accounts' },
   { href: '/categories', icon: RiPriceTag3Line, label: 'Categories' },
   { href: '/settings', icon: RiSettings4Line, label: 'Settings' },
@@ -46,6 +47,7 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
+              title={collapsed ? item.label : undefined}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                 active

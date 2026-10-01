@@ -1,4 +1,5 @@
 import { cn, getTransactionColor, getTransactionBgColor } from '@/lib/utils';
+import { TRANSACTION_LABELS } from '@/lib/constants';
 
 interface BadgeProps {
   type: string;
@@ -15,7 +16,7 @@ export default function Badge({ type, className }: BadgeProps) {
         className
       )}
     >
-      {type}
+      {TRANSACTION_LABELS[type] || type}
     </span>
   );
 }

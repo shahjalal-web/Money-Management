@@ -46,7 +46,8 @@ export default function Topbar() {
           className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-surface-hover transition-all"
         >
           {user?.photoURL ? (
-            <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full" />
+            // eslint-disable-next-line @next/next/no-img-element -- external avatar URL; next/image would need remotePatterns config
+            <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full" />
           ) : (
             <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
               <RiUser3Line className="w-4 h-4 text-indigo-400" />
